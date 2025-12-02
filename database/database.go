@@ -110,8 +110,9 @@ func (d *Database) initialize(ctx context.Context) error {
 			`pkgid TEXT, ` +
 			`name TEXT, ` +
 			`arch TEXT, ` +
+			`version TEXT, ` +
 			`file TEXT, ` +
-			`UNIQUE(repository, pkgid, name, file))`,
+			`UNIQUE(repository, pkgid, name, arch, version, file))`,
 	} {
 		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("failed to initialize database: %q: %w", stmt, err)
@@ -145,7 +146,7 @@ func (d *Database) GetTimestamps(ctx context.Context, repo *zypper.Repository) (
 // Update a given repository; all updates should be done within the passed-in
 // function, as that will be used to establish a transaction.  It will be passed
 // a function which can update one file at a time.
-func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(func(pkgid, name, arch, file string) error) error) error {
+func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(func(pkgid, name, arch, version, file string) error) error) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -174,12 +175,15 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 	}
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT OR REPLACE INTO files (repository, pkgid, name, arch, file) `+
-			`VALUES(?, ?, ?, ?, ?)`)
+		`INSERT OR REPLACE INTO files (repository, pkgid, name, arch, version, file) `+
+			`VALUES(?, ?, ?, ?, ?, ?)`)
 
-	err = cb(func(pkgid, name, arch, file string) error {
-		_, err := stmt.ExecContext(ctx, rowid, pkgid, name, arch, file)
-		return err
+	err = cb(func(pkgid, name, arch, version, file string) error {
+		_, err := stmt.ExecContext(ctx, rowid, pkgid, name, arch, version, file)
+		if err != nil {
+			return fmt.Errorf("failed to update file: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
 		return err
@@ -195,13 +199,14 @@ type SearchResult struct {
 	Repository string `json:"repository"`
 	Package    string `json:"package"`
 	Arch       string `json:"arch"`
+	Version    string `json:"version"`
 	Path       string `json:"path"`
 }
 
 // Search for a file: Given a file path as a glob pattern, return packages with
 // matching files.
 func (d *Database) Search(ctx context.Context, path, arch string, enabled bool) ([]SearchResult, error) {
-	stmt := `SELECT repositories.name, files.name, files.arch, files.file ` +
+	stmt := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
 		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
 		`WHERE files.file GLOB ? AND repositories.enabled == ?`
 	if arch != "" {
@@ -216,7 +221,7 @@ func (d *Database) Search(ctx context.Context, path, arch string, enabled bool) 
 	var results []SearchResult
 	for rows.Next() {
 		var result SearchResult
-		if err := rows.Scan(&result.Repository, &result.Package, &result.Arch, &result.Path); err != nil {
+		if err := rows.Scan(&result.Repository, &result.Package, &result.Arch, &result.Version, &result.Path); err != nil {
 			return nil, err
 		}
 		results = append(results, result)

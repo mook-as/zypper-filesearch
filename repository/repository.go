@@ -138,9 +138,14 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 
 	var data struct {
 		Package []*struct {
-			PkgId string `xml:"pkgid,attr"`
-			Name  string `xml:"name,attr"`
-			Arch  string `xml:"arch,attr"`
+			PkgId   string `xml:"pkgid,attr"`
+			Name    string `xml:"name,attr"`
+			Arch    string `xml:"arch,attr"`
+			Version struct {
+				Epoch   string `xml:"epoch,attr"`
+				Version string `xml:"ver,attr"`
+				Release string `xml:"rel,attr"`
+			} `xml:"version"`
 			Files []*struct {
 				Type string `xml:"type,attr"`
 				Path string `xml:",chardata"`
@@ -162,8 +167,14 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 		}
 	}
 
-	err = db.UpdateRepository(ctx, repo, updateStartTime, timestamp, func(add func(pkgid, name, arch, file string) error) error {
+	err = db.UpdateRepository(ctx, repo, updateStartTime, timestamp, func(add func(pkgid, name, arch, version, file string) error) error {
 		for _, pkg := range data.Package {
+			var version string
+			if pkg.Version.Epoch == "" || pkg.Version.Epoch == "0" {
+				version = fmt.Sprintf("%s-%s", pkg.Version.Version, pkg.Version.Release)
+			} else {
+				version = fmt.Sprintf("%s:%s-%s", pkg.Version.Epoch, pkg.Version.Version, pkg.Version.Release)
+			}
 			for _, file := range pkg.Files {
 				if file.Type == "dir" {
 					continue
@@ -171,7 +182,7 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 				if !filepath.IsAbs(file.Path) {
 					continue
 				}
-				if err := add(pkg.PkgId, pkg.Name, pkg.Arch, file.Path); err != nil {
+				if err := add(pkg.PkgId, pkg.Name, pkg.Arch, version, file.Path); err != nil {
 					return err
 				}
 			}

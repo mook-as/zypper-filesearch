@@ -64,10 +64,10 @@ func run(ctx context.Context) error {
 	}
 
 	writer := tabwriter.NewWriter(os.Stdout, 3, 8, 2, ' ', 0)
-	fmt.Fprint(writer, "Repository\tPackage\tArch\tFile\n")
-	fmt.Fprint(writer, "---\t---\t---\t---\n")
+	fmt.Fprint(writer, "Repository\tPackage\tVersion\tArch\tFile\n")
+	fmt.Fprint(writer, "---\t---\t---\t---\t---\n")
 	for _, result := range results {
-		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", result.Repository, result.Package, result.Arch, result.Path)
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", result.Repository, result.Package, result.Version, result.Arch, result.Path)
 	}
 	return writer.Flush()
 }
