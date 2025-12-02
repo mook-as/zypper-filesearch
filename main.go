@@ -31,7 +31,7 @@ func run(ctx context.Context) error {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &logOptions)))
 
 	if flag.NArg() != 1 {
-		return fmt.Errorf("Usage: zypper file-search [pattern]")
+		return fmt.Errorf("usage: zypper file-search [pattern]")
 	}
 	pattern := flag.Arg(0)
 
@@ -39,7 +39,9 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 	repos, err := zypper.ListRepositories(ctx, *releaseVer)
 	if err != nil {
 		return err
@@ -67,7 +69,7 @@ func run(ctx context.Context) error {
 	}
 
 	if len(results) == 0 {
-		return fmt.Errorf("No results found")
+		return fmt.Errorf("no results found")
 	}
 
 	if *jsonFormat {
@@ -110,14 +112,21 @@ func run(ctx context.Context) error {
 				Value: func(result database.SearchResult) string { return result.Path },
 			},
 		}
-		writeLine := func(f func(field) string) {
-			fmt.Fprintf(writer, "%s\n", strings.Join(itertools.Map(fields, f), "\t"))
+		writeLine := func(f func(field) string) error {
+			_, err := fmt.Fprintf(writer, "%s\n", strings.Join(itertools.Map(fields, f), "\t"))
+			return err
 		}
 
-		writeLine(func(f field) string { return f.Name })
-		writeLine(func(f field) string { return "---" })
+		if err := writeLine(func(f field) string { return f.Name }); err != nil {
+			return err
+		}
+		if err := writeLine(func(f field) string { return "---" }); err != nil {
+			return err
+		}
 		for _, result := range results {
-			writeLine(func(f field) string { return f.Value(result) })
+			if err := writeLine(func(f field) string { return f.Value(result) }); err != nil {
+				return err
+			}
 		}
 		if err := writer.Flush(); err != nil {
 			return err

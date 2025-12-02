@@ -154,7 +154,9 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 	}
 	// If we return before the commit, do a rollback.  This is a no-op if we have
 	// already committed.
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	// This drops any existing data for the repository because we enable the
 	// recursive_triggers pragma, which per https://www.sqlite.org/lang_conflict.html:
@@ -178,6 +180,9 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT OR REPLACE INTO files (repository, pkgid, name, arch, version, file) `+
 			`VALUES(?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
 
 	err = cb(func(pkgid, name, arch, version, file string) error {
 		_, err := stmt.ExecContext(ctx, rowid, pkgid, name, arch, version, file)
@@ -219,7 +224,9 @@ func (d *Database) Search(ctx context.Context, path, arch string, enabled bool) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	var results []SearchResult
 	for rows.Next() {
 		var result SearchResult

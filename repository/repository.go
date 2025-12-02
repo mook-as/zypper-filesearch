@@ -78,7 +78,9 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 		}
 		return err
 	}
-	defer mdBody.Close()
+	defer func() {
+		_ = mdBody.Close()
+	}()
 	type repomdData struct {
 		Type     string `xml:"type,attr"`
 		Checksum struct {
@@ -120,7 +122,9 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 		}
 		return err
 	}
-	defer fileListBody.Close()
+	defer func() {
+		_ = fileListBody.Close()
+	}()
 
 	var hasher hash.Hash
 	switch repomd.Data[fileListIndex].Checksum.Type {
