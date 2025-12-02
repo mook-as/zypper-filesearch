@@ -4,6 +4,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"time"
@@ -196,11 +197,12 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 }
 
 type SearchResult struct {
-	Repository string `json:"repository"`
-	Package    string `json:"package"`
-	Arch       string `json:"arch"`
-	Version    string `json:"version"`
-	Path       string `json:"path"`
+	XMLName    xml.Name `json:"-" xml:"result"`
+	Repository string   `json:"repository" xml:"repository,attr"`
+	Package    string   `json:"package" xml:"package,attr"`
+	Arch       string   `json:"arch" xml:"arch,attr"`
+	Version    string   `json:"version" xml:"versionm,attr"`
+	Path       string   `json:"path" xml:"path,attr"`
 }
 
 // Search for a file: Given a file path as a glob pattern, return packages with
