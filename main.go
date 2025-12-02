@@ -19,6 +19,7 @@ import (
 
 func run(ctx context.Context) error {
 	verbose := flag.Bool("verbose", false, "Enable debug logging")
+	releaseVer := flag.String("releasever", "", "Set the value of $releasever in all .repo files")
 	jsonFormat := flag.Bool("json", false, "Enable JSON output")
 	xmlFormat := flag.Bool("xmlout", false, "Enable XML output")
 	flag.Parse()
@@ -39,7 +40,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer db.Close()
-	repos, err := zypper.ListRepositories(ctx)
+	repos, err := zypper.ListRepositories(ctx, *releaseVer)
 	if err != nil {
 		return err
 	}

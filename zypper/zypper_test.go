@@ -7,6 +7,6 @@ import (
 )
 
 func TestListRepositories(t *testing.T) {
-	_, err := ListRepositories(t.Context())
+	_, err := ListRepositories(t.Context(), "")
 	assert.NilError(t, err)
 }

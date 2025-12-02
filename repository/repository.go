@@ -73,6 +73,9 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 
 	mdBody, err := fetch(ctx, repo.Name, "repomd.xml", repo.URL, "repodata", "repomd.xml")
 	if err != nil {
+		if !repo.Enabled {
+			return nil // Ignore errors from disabled repositories
+		}
 		return err
 	}
 	defer mdBody.Close()
@@ -112,6 +115,9 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 	fileListBody, err := fetch(ctx,
 		repo.Name, "filelists.xml", repo.URL, repomd.Data[fileListIndex].Location.Href)
 	if err != nil {
+		if !repo.Enabled {
+			return nil // Ignore errors from disabled repositories
+		}
 		return err
 	}
 	defer fileListBody.Close()

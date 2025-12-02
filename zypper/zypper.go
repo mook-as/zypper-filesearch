@@ -31,9 +31,13 @@ var arch = sync.OnceValues(func() (string, error) {
 })
 
 // List the repositories that are enabled on the system.
-func ListRepositories(ctx context.Context) ([]*Repository, error) {
+func ListRepositories(ctx context.Context, releaseVer string) ([]*Repository, error) {
 	var buf bytes.Buffer
-	cmd := exec.CommandContext(ctx, "zypper", "--xmlout", "repos")
+	args := []string{"--xmlout", "repos"}
+	if releaseVer != "" {
+		args = append([]string{"--releasever", releaseVer}, args...)
+	}
+	cmd := exec.CommandContext(ctx, "zypper", args...)
 	cmd.Stdout = &buf
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("failed to get repositories: %w", err)
