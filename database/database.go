@@ -28,10 +28,11 @@ func New(ctx context.Context) (*Database, error) {
 		return nil, fmt.Errorf("failed to determine database file path: %w", err)
 	}
 
-	db, err := sql.Open("sqlite3", "file:"+filePath)
+	db, err := sql.Open("sqlite3", "file:"+filePath+"?mode=rwc&cache=shared")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+	db.SetMaxOpenConns(1)
 
 	d := &Database{
 		db: db,
@@ -143,7 +144,7 @@ func (d *Database) GetTimestamps(ctx context.Context, repo *zypper.Repository) (
 // Update a given repository; all updates should be done within the passed-in
 // function, as that will be used to establish a transaction.  It will be passed
 // a function which can update one file at a time.
-func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(func(pkgid, name, file string)error)error) error {
+func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(func(pkgid, name, file string) error) error) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -155,12 +156,12 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 	// This drops any existing data for the repository because we enable the
 	// recursive_triggers pragma, which per https://www.sqlite.org/lang_conflict.html:
 	// > When the REPLACE conflict resolution strategy deletes rows in order to
-	// > satisfy a constraint, delete triggers fire if and only if recursive 
+	// > satisfy a constraint, delete triggers fire if and only if recursive
 	// > triggers are enabled.
-	result, err := tx.ExecContext(ctx, 
+	result, err := tx.ExecContext(ctx,
 		`INSERT OR REPLACE INTO repositories `+
-		`(alias, name, url, type, enabled, lastChecked, lastModified) `+
-		`VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			`(alias, name, url, type, enabled, lastChecked, lastModified) `+
+			`VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		repo.Alias, repo.Name, repo.URL, repo.Type, repo.Enabled, lastChecked, lastModified)
 	if err != nil {
 		return fmt.Errorf("failed to update repository %s: %w", repo.Name, err)
@@ -173,8 +174,8 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT OR REPLACE INTO files (repository, pkgid, name, file) `+
-		`VALUES(?, ?, ?, ?)`)
-	
+			`VALUES(?, ?, ?, ?)`)
+
 	err = cb(func(pkgid, name, file string) error {
 		_, err := stmt.ExecContext(ctx, rowid, pkgid, name, file)
 		return err
@@ -192,10 +193,10 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 // Search for a file: Given a file path, return the repository, package name,
 // and file path.
 func (d *Database) Search(ctx context.Context, path string) ([][3]string, error) {
-	rows, err := d.db.QueryContext(ctx, 
+	rows, err := d.db.QueryContext(ctx,
 		`SELECT repositories.name, files.name, files.file `+
-		`FROM files INNER JOIN repositories ON files.repository == repositories.id `+
-		`WHERE files.file GLOB ?`, path)
+			`FROM files INNER JOIN repositories ON files.repository == repositories.id `+
+			`WHERE files.file GLOB ?`, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search query: %w", err)
 	}

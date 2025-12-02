@@ -6,6 +6,7 @@ require (
 	github.com/adrg/xdg v0.5.3
 	github.com/klauspost/compress v1.18.2
 	github.com/mattn/go-sqlite3 v1.14.32
+	golang.org/x/sync v0.18.0
 	gotest.tools/v3 v3.5.2
 )
 

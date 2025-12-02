@@ -14,10 +14,10 @@ func TestRefresh(t *testing.T) {
 	// TODO: Set up a RPM repository for this project, and use that for the test
 	err = Refresh(t.Context(), db, []*zypper.Repository{
 		{
-			Name: "openh264",
-			Type: "rpm-md",
+			Name:    "openh264",
+			Type:    "rpm-md",
 			Enabled: true,
-			URL: "http://codecs.opensuse.org/openh264/openSUSE_Leap_16/",
+			URL:     "http://codecs.opensuse.org/openh264/openSUSE_Leap_16/",
 		},
 	})
 	assert.NilError(t, err)
