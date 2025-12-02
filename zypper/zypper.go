@@ -8,6 +8,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os/exec"
+	"strings"
+	"sync"
 )
 
 type Repository struct {
@@ -17,6 +19,16 @@ type Repository struct {
 	Enabled bool   `xml:"enabled,attr"`
 	URL     string `xml:"url"`
 }
+
+var arch = sync.OnceValues(func() (string, error) {
+	var buf bytes.Buffer
+	cmd := exec.Command("zypper", "system-architecture")
+	cmd.Stdout = &buf
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(buf.String()), nil
+})
 
 // List the repositories that are enabled on the system.
 func ListRepositories(ctx context.Context) ([]*Repository, error) {
@@ -42,4 +54,8 @@ func ListRepositories(ctx context.Context) ([]*Repository, error) {
 	}
 
 	return data.Repos, nil
+}
+
+func Arch() (string, error) {
+	return arch()
 }

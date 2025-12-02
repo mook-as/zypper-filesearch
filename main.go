@@ -40,9 +40,23 @@ func run(ctx context.Context) error {
 	if err := repository.Refresh(ctx, db, repos); err != nil {
 		return err
 	}
-	results, err := db.Search(ctx, pattern)
+
+	arch, err := zypper.Arch()
 	if err != nil {
-		return err
+		arch = ""
+	}
+
+	var results []database.SearchResult
+	for _, arch := range []string{"", arch} {
+		for _, enabled := range []bool{true, false} {
+			results, err = db.Search(ctx, pattern, arch, enabled)
+			if err != nil {
+				return err
+			}
+			if len(results) > 0 {
+				break
+			}
+		}
 	}
 
 	if len(results) == 0 {
@@ -50,10 +64,10 @@ func run(ctx context.Context) error {
 	}
 
 	writer := tabwriter.NewWriter(os.Stdout, 3, 8, 2, ' ', 0)
-	fmt.Fprint(writer, "Repository\tPackage\tFile\n")
-	fmt.Fprint(writer, "---\t---\t---\n")
+	fmt.Fprint(writer, "Repository\tPackage\tArch\tFile\n")
+	fmt.Fprint(writer, "---\t---\t---\t---\n")
 	for _, result := range results {
-		fmt.Fprintf(writer, "%s\t%s\t%s\n", result[0], result[1], result[2])
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", result.Repository, result.Package, result.Arch, result.Path)
 	}
 	return writer.Flush()
 }

@@ -162,7 +162,7 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 		}
 	}
 
-	err = db.UpdateRepository(ctx, repo, updateStartTime, timestamp, func(add func(pkgid, name, file string) error) error {
+	err = db.UpdateRepository(ctx, repo, updateStartTime, timestamp, func(add func(pkgid, name, arch, file string) error) error {
 		for _, pkg := range data.Package {
 			for _, file := range pkg.Files {
 				if file.Type == "dir" {
@@ -171,7 +171,7 @@ func updateRepository(ctx context.Context, db *database.Database, repo *zypper.R
 				if !filepath.IsAbs(file.Path) {
 					continue
 				}
-				if err := add(pkg.PkgId, pkg.Name, file.Path); err != nil {
+				if err := add(pkg.PkgId, pkg.Name, pkg.Arch, file.Path); err != nil {
 					return err
 				}
 			}
