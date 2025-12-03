@@ -37,15 +37,16 @@ Zypper plugin that searches for packages that contain a given file pattern.
 
 %build
 go build -mod=vendor -buildmode=pie
+go tool go-md2man -in=%{name}.1.md -out=%{name}.1
 
 %install
 install -D -m0755 %{name} %{buildroot}%{_bindir}/%{name}
-#install -D -m0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
+install -D -m0644 %{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 
 %files
 %license LICENSE.txt GPL-2.0.txt
 %doc README.md
 %{_bindir}/%{name}
-#%{_mandir}/man1/%{name}.1%{?ext_man}
+%{_mandir}/man1/%{name}.1%{?ext_man}
 
 %changelog
