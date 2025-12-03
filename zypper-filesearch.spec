@@ -36,9 +36,7 @@ Zypper plugin that searches for packages that contain a given file pattern.
 %autosetup -p1 -a1
 
 %build
-go build \
-   -mod=vendor \
-   -buildmode=pie
+go build -mod=vendor -buildmode=pie
 
 %install
 install -D -m0755 %{name} %{buildroot}%{_bindir}/%{name}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<repomd xmlns="http://linux.duke.edu/metadata/repo" xmlns:rpm="http://linux.duke.edu/metadata/rpm">
+  <data type="unrelated">
+    <location href="/dev/null"/>
+  </data>
+  <data type="filelists">
+    <checksum type="sha512">01139a37dba3bf3f168b3e51eec4dae011a44421742255e984b2c196e993195d3fa8210fcecd22fa5a1b296e588a2b1f34dc1097201b5a372b3471ee1920bd24</checksum>
+    <location href="repodata/filelists.uncompressed.xml"/>
+    <timestamp>1764717985</timestamp>
+    <size>631</size>
+    <open-size>1954</open-size>
+  </data>
+</repomd>

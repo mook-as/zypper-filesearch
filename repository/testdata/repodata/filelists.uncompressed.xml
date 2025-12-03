@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<filelists xmlns="http://linux.duke.edu/metadata/filelists" packages="3">
+<package pkgid="83c23e3fd2f113c96d73a48fa95e59789566c3d91cdabead79e08ddca7f25108df1bacbfb1c277541f10ce04eea2a123c40cca0e4e9a61c1f08295ceb9d73b96" name="zypper-filesearch" arch="aarch64">
+  <version epoch="0" ver="0.20251202T1523520800.235d9b57f3d8fbc2bc1856a34a088ba831bbae86" rel="lp160.10.1"/>
+  <file>/usr/bin/zypper-filesearch</file>
+  <file type="dir">/usr/share/doc/packages/zypper-filesearch</file>
+  <file>/usr/share/doc/packages/zypper-filesearch/README.md</file>
+  <file type="dir">/usr/share/licenses/zypper-filesearch</file>
+  <file>/usr/share/licenses/zypper-filesearch/GPL-2.0.txt</file>
+  <file>/usr/share/licenses/zypper-filesearch/LICENSE.txt</file>
+</package>
+<package pkgid="632bb3283085b4b480a602436103fe4601d7b713f60a1ba17010d7dee39930f1ce8e00457126f262474604767825fbc9aa79776212b02bd950f938ad166ea9d3" name="zypper-filesearch" arch="src">
+  <version epoch="0" ver="0.20251202T1523520800.235d9b57f3d8fbc2bc1856a34a088ba831bbae86" rel="lp160.10.1"/>
+  <file>vendor.tar.zst</file>
+  <file>zypper-filesearch-0.20251202T1523520800.235d9b57f3d8fbc2bc1856a34a088ba831bbae86.tar.gz</file>
+  <file>zypper-filesearch.spec</file>
+</package>
+<package pkgid="a8c52388771b0c249b611fbc6f32a1b94c1daeb234101dc2b2a406594cc9e57f93b0f66bf6ba5815e6db507daba03d0d64487126243a22d7ba16bb6f6bb3cb73" name="zypper-filesearch" arch="x86_64">
+  <version epoch="0" ver="0.20251202T1523520800.235d9b57f3d8fbc2bc1856a34a088ba831bbae86" rel="lp160.10.1"/>
+  <file>/usr/bin/zypper-filesearch</file>
+  <file type="dir">/usr/share/doc/packages/zypper-filesearch</file>
+  <file>/usr/share/doc/packages/zypper-filesearch/README.md</file>
+  <file type="dir">/usr/share/licenses/zypper-filesearch</file>
+  <file>/usr/share/licenses/zypper-filesearch/GPL-2.0.txt</file>
+  <file>/usr/share/licenses/zypper-filesearch/LICENSE.txt</file>
+</package>
+</filelists>
