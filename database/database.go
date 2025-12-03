@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: SUSE LLC
+
 // Package database contains the wrappers for operating with the database.
 package database
 

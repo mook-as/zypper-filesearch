@@ -11,6 +11,9 @@ require (
 )
 
 require (
+	github.com/containerd/ltag v0.3.0 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 )
+
+tool github.com/containerd/ltag

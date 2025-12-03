@@ -12,8 +12,8 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
-# Please submit bugfixes or comments via https://bugs.opensuse.org/
-#
+# Please submit bugfixes or comments via
+# https://github.com/mook-as/zypper-filesearch/issues
 
 
 Name:           zypper-filesearch

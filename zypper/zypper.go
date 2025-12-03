@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: SUSE LLC
+
 // Package zypper wraps interactions with zypper to find repositories enabled
 // on the system.
 package zypper

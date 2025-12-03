@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: SUSE LLC
+
 package itertools
 
 func Map[S ~[]E, E, R any](x S, f func(E) R) []R {
