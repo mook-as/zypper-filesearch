@@ -115,8 +115,7 @@ func (d *Database) initialize(ctx context.Context) error {
 			`name TEXT, ` +
 			`arch TEXT, ` +
 			`version TEXT, ` +
-			`file TEXT, ` +
-			`UNIQUE(repository, pkgid, name, arch, version, file))`,
+			`file TEXT)`,
 	} {
 		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("failed to initialize database: %q: %w", stmt, err)
