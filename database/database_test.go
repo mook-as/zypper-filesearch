@@ -15,6 +15,22 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	repo := &zypper.Repository{
+		Name:    "test",
+		Type:    "rpm-md",
+		Enabled: true,
+		URL:     "http://fake-host.test",
+	}
+	expected := []SearchResult{
+		{
+			Repository: repo.Name,
+			Package:    "pkg-name",
+			Arch:       "avr32",
+			Version:    "2:1.5-6",
+			Path:       "/some/path",
+		},
+	}
+
 	// Ensure we use a temporary directory for the database.
 	cacheDir := t.TempDir()
 	assert.NilError(t, os.Setenv("XDG_CACHE_HOME", cacheDir))
@@ -26,16 +42,16 @@ func TestNew(t *testing.T) {
 	assert.Check(t, db != nil, "no database")
 
 	// Add some entries.
-	repo := &zypper.Repository{
-		Name:    "test",
-		Type:    "rpm-md",
-		Enabled: true,
-		URL:     "http://fake-host.test",
-	}
 	lastModified := time.Unix(1231006505, 0).UTC()
 	lastChecked := time.Unix(1231469665, 0).UTC()
 	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(f func(pkgid, name, arch, version, file string) error) error {
-		return f("pkg-id", "pkg-name", "avr32", "2:1.5-6", "/some/path")
+		for _, entry := range expected {
+			err := f("pkg-id", entry.Package, entry.Arch, entry.Version, entry.Path)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	assert.NilError(t, err)
 
@@ -46,17 +62,14 @@ func TestNew(t *testing.T) {
 	assert.Check(t, cmp.Equal(lastChecked, actualChecked))
 
 	// Check that we can find the file
-	results, err := db.Search(t.Context(), "/some/path", "", true)
+	results, err := db.SearchFile(t.Context(), "/some/path", "", true)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.DeepEqual(results, []SearchResult{
-		{
-			Repository: repo.Name,
-			Package:    "pkg-name",
-			Arch:       "avr32",
-			Version:    "2:1.5-6",
-			Path:       "/some/path",
-		},
-	}))
+	assert.Check(t, cmp.DeepEqual(results, expected))
+
+	// Check that we can list files
+	results, err = db.ListPackage(t.Context(), "", true, "pkg-name")
+	assert.NilError(t, err)
+	assert.Check(t, cmp.DeepEqual(results, expected))
 
 	// Check that the file can be written
 	assert.NilError(t, db.Close())
@@ -69,7 +82,7 @@ func TestNew(t *testing.T) {
 	db, err = New(t.Context())
 	assert.NilError(t, err)
 	assert.Assert(t, db != nil, "no database")
-	results, err = db.Search(t.Context(), "/some/path", "", true)
+	results, err = db.SearchFile(t.Context(), "/some/path", "", true)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(results, 1))
 

@@ -33,7 +33,7 @@ func TestRefresh(t *testing.T) {
 	defer server.Close()
 
 	// Check that we have no results before the refresh
-	results, err := db.Search(t.Context(), "*/zypper-filesearch/LICENSE*", "x86_64_v999", true)
+	results, err := db.SearchFile(t.Context(), "*/zypper-filesearch/LICENSE*", "x86_64_v999", true)
 	assert.NilError(t, err, "failed to search for files")
 	assert.Check(t, cmp.Len(results, 0))
 
@@ -48,7 +48,7 @@ func TestRefresh(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Check that we found results after the refresh
-	results, err = db.Search(t.Context(), "*/zypper-filesearch/LICENSE*", "x86_64_v999", true)
+	results, err = db.SearchFile(t.Context(), "*/zypper-filesearch/LICENSE*", "x86_64_v999", true)
 	assert.NilError(t, err, "failed to search for files")
 	assert.Assert(t, cmp.DeepEqual(results, []database.SearchResult{
 		{

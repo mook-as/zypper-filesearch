@@ -1,12 +1,12 @@
 # NAME
-zypper-filesearch - Zypper plugin to search for packages by contents
+zypper-file-search - Zypper plugin to search for packages by contents
 
 # SYNOPSIS
-**zypper-filesearch** [_options_] _terms_
+**zypper-file-search** [_options_] _terms_
 
 # DESCRIPTION
-zypper-filesearch is a zypper plugin to find packages by searching through their
-contents without installing them first.  This is normally not required for
+zypper-file-search is a zypper plugin to find packages by searching through
+their contents without installing them first.  This is normally not required for
 executables as zypper searches for files containing the paths `/bin/`, `/sbin/`,
 and `/etc/`.
 
@@ -26,7 +26,7 @@ and `/etc/`.
 # EXAMPLES
 Locate the package providing this package's LICENSE:
 ```sh
-> zypper filesearch '*/zypper-fileseach/LICENSE*'
+> zypper file-search '*/zypper-fileseach/LICENSE*'
 
 Repository                 Package            Version         Arch    File
 ---                        ---                ---             ---     ---

@@ -25,6 +25,7 @@ Group:          System/Packages
 URL:            https://github.com/mook-as/zypper-filesearch
 Source:         https://github.com/mook-as/zypper-filesearch/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
 Source1:        vendor.tar.zst
+BuildRequires:  fdupes
 BuildRequires:  golang-packaging
 BuildRequires:  sqlite3-devel
 BuildRequires:  zstd
@@ -37,16 +38,22 @@ Zypper plugin that searches for packages that contain a given file pattern.
 
 %build
 go build -mod=vendor -buildmode=pie
-go tool go-md2man -in=%{name}.1.md -out=%{name}.1
+go tool go-md2man -in=zypper-file-search.1.md -out=zypper-file-search.1
+go tool go-md2man -in=zypper-file-list.1.md -out=zypper-file-list.1
 
 %install
-install -D -m0755 %{name} %{buildroot}%{_bindir}/%{name}
-install -D -m0644 %{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
+install -D --mode=0755 --strip %{name} %{buildroot}%{_bindir}/zypper-file-search
+install -D --mode=0755 --strip %{name} %{buildroot}%{_bindir}/zypper-file-list
+install -D --mode=0644 zypper-file-search.1 %{buildroot}%{_mandir}/man1/zypper-file-search.1
+install -D --mode=0644 zypper-file-list.1 %{buildroot}%{_mandir}/man1/zypper-file-list.1
+%fdupes %{buildroot}%{_bindir}
 
 %files
 %license LICENSE.txt GPL-2.0.txt
 %doc README.md
-%{_bindir}/%{name}
-%{_mandir}/man1/%{name}.1%{?ext_man}
+%{_bindir}/zypper-file-search
+%{_bindir}/zypper-file-list
+%doc %{_mandir}/man1/zypper-file-search.1%{?ext_man}
+%doc %{_mandir}/man1/zypper-file-list.1%{?ext_man}
 
 %changelog

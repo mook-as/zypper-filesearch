@@ -10,6 +10,8 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/adrg/xdg"
@@ -214,7 +216,7 @@ type SearchResult struct {
 
 // Search for a file: Given a file path as a glob pattern, return packages with
 // matching files.
-func (d *Database) Search(ctx context.Context, path, arch string, enabled bool) ([]SearchResult, error) {
+func (d *Database) SearchFile(ctx context.Context, path, arch string, enabled bool) ([]SearchResult, error) {
 	stmt := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
 		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
 		`WHERE files.file GLOB ? AND repositories.enabled == ?`
@@ -240,5 +242,65 @@ func (d *Database) Search(ctx context.Context, path, arch string, enabled bool) 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error reading query results: %w", err)
 	}
+	return results, nil
+}
+
+func (d *Database) ListPackage(ctx context.Context, arch string, enabled bool, terms ...string) ([]SearchResult, error) {
+	query := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
+		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
+		`WHERE files.name == ? AND (? == '' OR files.version == ?) AND repositories.enabled == ?`
+	if arch != "" {
+		query += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
+	}
+	stmt, err := d.db.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare statement: %q", err)
+	}
+
+	var results []SearchResult
+	for _, term := range terms {
+		term = strings.TrimSuffix(term, "-")
+		// `pkg` may be `pkg-version` or `pkg-version-build`
+		candidates := []int{-1}
+		if i := strings.LastIndex(term, "-"); i > -1 {
+			candidates = append(candidates, i)
+			if j := strings.LastIndex(term[:i], "-"); j > -1 {
+				candidates = append(candidates, j)
+			}
+		}
+
+		found := false
+		for _, i := range candidates {
+			pkg := term
+			version := ""
+			if i > -1 {
+				pkg = term[:i]
+				version = term[i+1:]
+			}
+			rows, err := stmt.QueryContext(ctx, pkg, version, version, enabled)
+			if err != nil {
+				return nil, fmt.Errorf("failed to query package %s: %w", pkg, err)
+			}
+			defer func() {
+				_ = rows.Close()
+			}()
+			for rows.Next() {
+				found = true
+				var result SearchResult
+				if err := rows.Scan(&result.Repository, &result.Package, &result.Arch, &result.Version, &result.Path); err != nil {
+					return nil, err
+				}
+				results = append(results, result)
+			}
+			_ = rows.Close()
+			if found {
+				break
+			}
+		}
+		if !found {
+			slog.ErrorContext(ctx, "package not found", "package", term)
+		}
+	}
+
 	return results, nil
 }

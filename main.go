@@ -14,6 +14,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/mook-as/zypper-filesearch/cmd"
+	"github.com/mook-as/zypper-filesearch/cmd/filelist"
+	"github.com/mook-as/zypper-filesearch/cmd/filesearch"
 	"github.com/mook-as/zypper-filesearch/database"
 	"github.com/mook-as/zypper-filesearch/itertools"
 	"github.com/mook-as/zypper-filesearch/repository"
@@ -22,9 +25,23 @@ import (
 
 func run(ctx context.Context) error {
 	verbose := flag.Bool("verbose", false, "Enable debug logging")
-	releaseVer := flag.String("releasever", "", "Set the value of $releasever in all .repo files")
+	releaseVer := flag.String("releasever", "", "Set the value of $releasever in a .repo files")
 	jsonFormat := flag.Bool("json", false, "Enable JSON output")
 	xmlFormat := flag.Bool("xmlout", false, "Enable XML output")
+
+	var cmd cmd.CommandRunner
+
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if strings.HasSuffix(exe, "zypper-file-list") {
+		cmd = filelist.New()
+	} else {
+		cmd = filesearch.New()
+	}
+
+	cmd.AddFlags()
 	flag.Parse()
 
 	var logOptions slog.HandlerOptions
@@ -33,10 +50,10 @@ func run(ctx context.Context) error {
 	}
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &logOptions)))
 
-	if flag.NArg() != 1 {
-		return fmt.Errorf("usage: zypper file-search [pattern]")
+	// Make sure we can get the arch.
+	if _, err := zypper.Arch(); err != nil {
+		return err
 	}
-	pattern := flag.Arg(0)
 
 	db, err := database.New(ctx)
 	if err != nil {
@@ -45,6 +62,7 @@ func run(ctx context.Context) error {
 	defer func() {
 		_ = db.Close()
 	}()
+
 	repos, err := zypper.ListRepositories(ctx, *releaseVer)
 	if err != nil {
 		return err
@@ -53,22 +71,9 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	arch, err := zypper.Arch()
+	results, err := cmd.Run(ctx, db, repos)
 	if err != nil {
-		arch = ""
-	}
-
-	var results []database.SearchResult
-	for _, arch := range []string{"", arch} {
-		for _, enabled := range []bool{true, false} {
-			results, err = db.Search(ctx, pattern, arch, enabled)
-			if err != nil {
-				return err
-			}
-			if len(results) > 0 {
-				break
-			}
-		}
+		return err
 	}
 
 	if len(results) == 0 {
