@@ -219,7 +219,7 @@ type SearchResult struct {
 func (d *Database) SearchFile(ctx context.Context, path, arch string, enabled bool) ([]SearchResult, error) {
 	stmt := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
 		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
-		`WHERE files.file GLOB ? AND repositories.enabled == ?`
+		`WHERE files.file GLOB ? AND repositories.enabled IN (true, ?)`
 	if arch != "" {
 		stmt += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
 	}
@@ -248,7 +248,7 @@ func (d *Database) SearchFile(ctx context.Context, path, arch string, enabled bo
 func (d *Database) ListPackage(ctx context.Context, arch string, enabled bool, terms ...string) ([]SearchResult, error) {
 	query := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
 		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
-		`WHERE files.name == ? AND (? == '' OR files.version == ?) AND repositories.enabled == ?`
+		`WHERE files.name == ? AND (? == '' OR files.version == ?) AND repositories.enabled IN (true, ?)`
 	if arch != "" {
 		query += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
 	}

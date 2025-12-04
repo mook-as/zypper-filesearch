@@ -23,6 +23,11 @@ and `/etc/`.
 **-xmlout**
 :   Produce output in XML format.
 
+# FILES
+**/usr/share/etc/zypper-filesearch.conf**, **/etc/zypper-filesearch.conf**, **$HOME/.config/zypper-filesearch.conf**
+:   Configuration file for `zypper-file-search`.  User settings are preferred
+    over global settings.
+
 # EXAMPLES
 Locate the package providing this package's LICENSE:
 ```sh

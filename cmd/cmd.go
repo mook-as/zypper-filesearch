@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 
+	"github.com/mook-as/zypper-filesearch/config"
 	"github.com/mook-as/zypper-filesearch/database"
 	"github.com/mook-as/zypper-filesearch/zypper"
 )
@@ -17,6 +18,7 @@ type CommandRunner interface {
 	// Run the command, with the given options.
 	Run(
 		context.Context,
+		*config.Config,
 		*database.Database,
 		[]*zypper.Repository,
 	) ([]database.SearchResult, error)

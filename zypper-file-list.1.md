@@ -21,6 +21,12 @@ having to install it first.
 **-xmlout**
 :   Produce output in XML format.
 
+# FILES
+**/usr/share/etc/zypper-filesearch.conf**, **/etc/zypper-filesearch.conf**, **$HOME/.config/zypper-filesearch.conf**
+:   Configuration file for `zypper-file-list`.  User settings are preferred
+    over global settings.
+
+
 # EXAMPLES
 List files in the `git` and `libsolv1` packages:
 ```sh

@@ -17,6 +17,7 @@ import (
 	"github.com/mook-as/zypper-filesearch/cmd"
 	"github.com/mook-as/zypper-filesearch/cmd/filelist"
 	"github.com/mook-as/zypper-filesearch/cmd/filesearch"
+	"github.com/mook-as/zypper-filesearch/config"
 	"github.com/mook-as/zypper-filesearch/database"
 	"github.com/mook-as/zypper-filesearch/itertools"
 	"github.com/mook-as/zypper-filesearch/repository"
@@ -24,11 +25,6 @@ import (
 )
 
 func run(ctx context.Context) error {
-	verbose := flag.Bool("verbose", false, "Enable debug logging")
-	releaseVer := flag.String("releasever", "", "Set the value of $releasever in a .repo files")
-	jsonFormat := flag.Bool("json", false, "Enable JSON output")
-	xmlFormat := flag.Bool("xmlout", false, "Enable XML output")
-
 	var cmd cmd.CommandRunner
 
 	exe, err := os.Executable()
@@ -41,11 +37,17 @@ func run(ctx context.Context) error {
 		cmd = filesearch.New()
 	}
 
+	config.AddFlags()
 	cmd.AddFlags()
 	flag.Parse()
 
+	cfg, err := config.Read(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read configuration: %w", err)
+	}
+
 	var logOptions slog.HandlerOptions
-	if *verbose {
+	if cfg.Verbose {
 		logOptions.Level = slog.LevelDebug
 	}
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &logOptions)))
@@ -63,7 +65,7 @@ func run(ctx context.Context) error {
 		_ = db.Close()
 	}()
 
-	repos, err := zypper.ListRepositories(ctx, *releaseVer)
+	repos, err := zypper.ListRepositories(ctx, cfg.ReleaseVer)
 	if err != nil {
 		return err
 	}
@@ -71,7 +73,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	results, err := cmd.Run(ctx, db, repos)
+	results, err := cmd.Run(ctx, cfg, db, repos)
 	if err != nil {
 		return err
 	}
@@ -80,19 +82,20 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("no results found")
 	}
 
-	if *jsonFormat {
+	switch cfg.Format {
+	case config.OutputFormatJSON:
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(results); err != nil {
 			return err
 		}
-	} else if *xmlFormat {
+	case config.OutputFormatXML:
 		encoder := xml.NewEncoder(os.Stdout)
 		encoder.Indent("", "  ")
 		if err := encoder.Encode(results); err != nil {
 			return err
 		}
-	} else {
+	case config.OutputFormatHuman:
 		type field struct {
 			Name  string
 			Value func(result database.SearchResult) string
