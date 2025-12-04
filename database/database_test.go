@@ -44,10 +44,12 @@ func TestNew(t *testing.T) {
 	// Add some entries.
 	lastModified := time.Unix(1231006505, 0).UTC()
 	lastChecked := time.Unix(1231469665, 0).UTC()
-	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(f func(pkgid, name, arch, version, file string) error) error {
+	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(p func(pkgid, name, arch, version string) error, f func(pkgid, file string) error) error {
 		for _, entry := range expected {
-			err := f("pkg-id", entry.Package, entry.Arch, entry.Version, entry.Path)
-			if err != nil {
+			if err := p("pkg-id", entry.Package, entry.Arch, entry.Version); err != nil {
+				return err
+			}
+			if err := f("pkg-id", entry.Path); err != nil {
 				return err
 			}
 		}

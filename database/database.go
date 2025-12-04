@@ -23,7 +23,7 @@ import (
 
 const (
 	applicationId = int32(0x11668798)
-	userVersion   = int32(1)
+	userVersion   = int32(2)
 )
 
 type Database struct {
@@ -112,14 +112,20 @@ func (d *Database) initialize(ctx context.Context) error {
 			`lastChecked DATE, ` +
 			`lastModified DATE` +
 			`)`,
-		`DROP TABLE IF EXISTS files`,
-		`CREATE TABLE files (` +
+		`DROP TABLE IF EXISTS packages`,
+		`CREATE TABLE packages (` +
 			`repository INTEGER REFERENCES repositories(id) ON DELETE CASCADE, ` +
-			`pkgid TEXT, ` +
+			`id INTEGER PRIMARY KEY AUTOINCREMENT, ` +
+			`pkgid TEXT UNIQUE, ` +
 			`name TEXT, ` +
 			`arch TEXT, ` +
 			`version TEXT, ` +
-			`file TEXT)`,
+			`UNIQUE (repository, name, arch, version))`,
+		`DROP TABLE IF EXISTS files`,
+		`CREATE TABLE files (` +
+			`pkgid TEXT REFERENCES packages(id) ON DELETE CASCADE, ` +
+			`file TEXT,
+			PRIMARY KEY (pkgid, file))`,
 	} {
 		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("failed to initialize database: %q: %w", stmt, err)
@@ -153,7 +159,7 @@ func (d *Database) GetTimestamps(ctx context.Context, repo *zypper.Repository) (
 // Update a given repository; all updates should be done within the passed-in
 // function, as that will be used to establish a transaction.  It will be passed
 // a function which can update one file at a time.
-func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(func(pkgid, name, arch, version, file string) error) error) error {
+func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(pkg func(pkgid, name, arch, version string) error, file func(pkgid, file string) error) error) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -183,15 +189,27 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 		return fmt.Errorf("failed to get last inserted id when updating repository %s: %w", repo.Name, err)
 	}
 
-	stmt, err := tx.PrepareContext(ctx,
-		`INSERT OR REPLACE INTO files (repository, pkgid, name, arch, version, file) `+
-			`VALUES(?, ?, ?, ?, ?, ?)`)
+	pkgStmt, err := tx.PrepareContext(ctx,
+		`INSERT OR REPLACE INTO packages (repository, pkgid, name, arch, version) `+
+			`VALUES(?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	fileStmt, err := tx.PrepareContext(ctx,
+		`INSERT OR REPLACE INTO files (pkgid, file) `+
+			`VALUES ((SELECT id FROM packages WHERE packages.pkgid = ?), ?)`)
 	if err != nil {
 		return err
 	}
 
-	err = cb(func(pkgid, name, arch, version, file string) error {
-		_, err := stmt.ExecContext(ctx, rowid, pkgid, name, arch, version, file)
+	err = cb(func(pkgid, name, arch, version string) error {
+		_, err := pkgStmt.ExecContext(ctx, rowid, pkgid, name, arch, version)
+		if err != nil {
+			return fmt.Errorf("failed to update package: %w", err)
+		}
+		return nil
+	}, func(pkgid, file string) error {
+		_, err := fileStmt.ExecContext(ctx, pkgid, file)
 		if err != nil {
 			return fmt.Errorf("failed to update file: %w", err)
 		}
@@ -226,11 +244,13 @@ func (d *Database) buildRepoFilter(repos []*zypper.Repository) (string, []any) {
 // matching files.
 func (d *Database) SearchFile(ctx context.Context, repos []*zypper.Repository, path, arch string) ([]SearchResult, error) {
 	repoQuery, repoArgs := d.buildRepoFilter(repos)
-	query := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
-		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
+
+	query := `SELECT repositories.name, packages.name, packages.arch, packages.version, files.file ` +
+		`FROM packages INNER JOIN repositories ON packages.repository == repositories.id ` +
+		`INNER JOIN files ON packages.id == files.pkgid ` +
 		`WHERE files.file GLOB ? AND repositories.url IN ` + repoQuery
 	if arch != "" {
-		query += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
+		query += fmt.Sprintf(` AND (packages.arch == 'noarch' OR '%s' LIKE packages.arch || '%%' )`, arch)
 	}
 
 	rows, err := d.db.QueryContext(ctx, query, slices.Concat([]any{path}, repoArgs)...)
@@ -251,24 +271,25 @@ func (d *Database) SearchFile(ctx context.Context, repos []*zypper.Repository, p
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error reading query results: %w", err)
 	}
+
 	return results, nil
 }
 
 func (d *Database) ListPackage(ctx context.Context, repos []*zypper.Repository, arch string, terms ...string) ([]SearchResult, error) {
 	repoQuery, repoArgs := d.buildRepoFilter(repos)
-	query := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
-		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
-		`WHERE files.name == ? AND (? == '' OR files.version == ?) AND repositories.url IN ` +
+
+	pkgQuery := `SELECT packages.id ` +
+		`FROM packages INNER JOIN repositories ON packages.repository == repositories.id ` +
+		`WHERE packages.name == ? AND (? == '' OR packages.version == ?) AND repositories.url IN ` +
 		repoQuery
 	if arch != "" {
-		query += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
+		pkgQuery += fmt.Sprintf(` AND (packages.arch == 'noarch' OR '%s' LIKE packages.arch || '%%' )`, arch)
 	}
-	stmt, err := d.db.PrepareContext(ctx, query)
+	pkgStmt, err := d.db.Prepare(pkgQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %q", err)
 	}
-
-	var results []SearchResult
+	var pkgIds []int
 	for _, term := range terms {
 		term = strings.TrimSuffix(term, "-")
 		// `pkg` may be `pkg-version` or `pkg-version-build`
@@ -288,7 +309,7 @@ func (d *Database) ListPackage(ctx context.Context, repos []*zypper.Repository, 
 				pkg = term[:i]
 				version = term[i+1:]
 			}
-			rows, err := stmt.QueryContext(ctx, slices.Concat([]any{pkg, version, version}, repoArgs)...)
+			rows, err := pkgStmt.QueryContext(ctx, slices.Concat([]any{pkg, version, version}, repoArgs)...)
 			if err != nil {
 				return nil, fmt.Errorf("failed to query package %s: %w", pkg, err)
 			}
@@ -297,11 +318,11 @@ func (d *Database) ListPackage(ctx context.Context, repos []*zypper.Repository, 
 			}()
 			for rows.Next() {
 				found = true
-				var result SearchResult
-				if err := rows.Scan(&result.Repository, &result.Package, &result.Arch, &result.Version, &result.Path); err != nil {
-					return nil, err
+				var pkgId int
+				if err := rows.Scan(&pkgId); err != nil {
+					return nil, fmt.Errorf("failed to get package %s (%s) id: %w", pkg, version, err)
 				}
-				results = append(results, result)
+				pkgIds = append(pkgIds, pkgId)
 			}
 			_ = rows.Close()
 			if found {
@@ -311,6 +332,27 @@ func (d *Database) ListPackage(ctx context.Context, repos []*zypper.Repository, 
 		if !found {
 			slog.ErrorContext(ctx, "package not found", "package", term)
 		}
+	}
+
+	query := `SELECT repositories.name, packages.name, packages.arch, packages.version, files.file ` +
+		`FROM packages INNER JOIN repositories ON packages.repository == repositories.id ` +
+		`INNER JOIN files ON packages.id == files.pkgid ` +
+		`WHERE packages.id IN ` +
+		fmt.Sprintf("(%s)", strings.Join(itertools.Map(pkgIds, func(s int) string { return "?" }), ", "))
+	rows, err := d.db.QueryContext(ctx, query, itertools.Map(pkgIds, func(s int) any { return s })...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packages: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+	var results []SearchResult
+	for rows.Next() {
+		var result SearchResult
+		if err := rows.Scan(&result.Repository, &result.Package, &result.Arch, &result.Version, &result.Path); err != nil {
+			return nil, fmt.Errorf("failed to read package list: %w", err)
+		}
+		results = append(results, result)
 	}
 
 	return results, nil
