@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
@@ -68,6 +69,12 @@ func run(ctx context.Context) error {
 	repos, err := zypper.ListRepositories(ctx, cfg.ReleaseVer)
 	if err != nil {
 		return err
+	}
+	if cfg.Enabled {
+		// Filter out disabled repositories
+		repos = slices.DeleteFunc(repos, func(r *zypper.Repository) bool {
+			return !r.Enabled
+		})
 	}
 	if err := repository.Refresh(ctx, db, repos); err != nil {
 		return err

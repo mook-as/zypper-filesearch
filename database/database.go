@@ -11,11 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/adrg/xdg"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/mook-as/zypper-filesearch/itertools"
 	"github.com/mook-as/zypper-filesearch/zypper"
 )
 
@@ -214,17 +216,24 @@ type SearchResult struct {
 	Path       string   `json:"path" xml:"path,attr"`
 }
 
+func (d *Database) buildRepoFilter(repos []*zypper.Repository) (string, []any) {
+	query := fmt.Sprintf("(%s)", strings.Join(itertools.Map(repos, func(r *zypper.Repository) string { return "?" }), ", "))
+	args := itertools.Map(repos, func(r *zypper.Repository) any { return r.URL })
+	return query, args
+}
+
 // Search for a file: Given a file path as a glob pattern, return packages with
 // matching files.
-func (d *Database) SearchFile(ctx context.Context, path, arch string, enabled bool) ([]SearchResult, error) {
-	stmt := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
+func (d *Database) SearchFile(ctx context.Context, repos []*zypper.Repository, path, arch string) ([]SearchResult, error) {
+	repoQuery, repoArgs := d.buildRepoFilter(repos)
+	query := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
 		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
-		`WHERE files.file GLOB ? AND repositories.enabled IN (true, ?)`
+		`WHERE files.file GLOB ? AND repositories.url IN ` + repoQuery
 	if arch != "" {
-		stmt += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
+		query += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
 	}
 
-	rows, err := d.db.QueryContext(ctx, stmt, path, enabled)
+	rows, err := d.db.QueryContext(ctx, query, slices.Concat([]any{path}, repoArgs)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search query: %w", err)
 	}
@@ -245,10 +254,12 @@ func (d *Database) SearchFile(ctx context.Context, path, arch string, enabled bo
 	return results, nil
 }
 
-func (d *Database) ListPackage(ctx context.Context, arch string, enabled bool, terms ...string) ([]SearchResult, error) {
+func (d *Database) ListPackage(ctx context.Context, repos []*zypper.Repository, arch string, terms ...string) ([]SearchResult, error) {
+	repoQuery, repoArgs := d.buildRepoFilter(repos)
 	query := `SELECT repositories.name, files.name, files.arch, files.version, files.file ` +
 		`FROM files INNER JOIN repositories ON files.repository == repositories.id ` +
-		`WHERE files.name == ? AND (? == '' OR files.version == ?) AND repositories.enabled IN (true, ?)`
+		`WHERE files.name == ? AND (? == '' OR files.version == ?) AND repositories.url IN ` +
+		repoQuery
 	if arch != "" {
 		query += fmt.Sprintf(` AND (files.arch == 'noarch' OR '%s' LIKE files.arch || '%%' )`, arch)
 	}
@@ -277,7 +288,7 @@ func (d *Database) ListPackage(ctx context.Context, arch string, enabled bool, t
 				pkg = term[:i]
 				version = term[i+1:]
 			}
-			rows, err := stmt.QueryContext(ctx, pkg, version, version, enabled)
+			rows, err := stmt.QueryContext(ctx, slices.Concat([]any{pkg, version, version}, repoArgs)...)
 			if err != nil {
 				return nil, fmt.Errorf("failed to query package %s: %w", pkg, err)
 			}

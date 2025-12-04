@@ -41,7 +41,7 @@ func (c *command) Run(ctx context.Context, cfg *config.Config, db *database.Data
 
 	var results []database.SearchResult
 	for _, arch := range []string{arch, ""} {
-		results, err = db.SearchFile(ctx, pattern, arch, cfg.Enabled)
+		results, err = db.SearchFile(ctx, repos, pattern, arch)
 		if err != nil {
 			return nil, err
 		}

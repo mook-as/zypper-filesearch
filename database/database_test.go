@@ -62,12 +62,12 @@ func TestNew(t *testing.T) {
 	assert.Check(t, cmp.Equal(lastChecked, actualChecked))
 
 	// Check that we can find the file
-	results, err := db.SearchFile(t.Context(), "/some/path", "", true)
+	results, err := db.SearchFile(t.Context(), []*zypper.Repository{repo}, "/some/path", "")
 	assert.NilError(t, err)
 	assert.Check(t, cmp.DeepEqual(results, expected))
 
 	// Check that we can list files
-	results, err = db.ListPackage(t.Context(), "", true, "pkg-name")
+	results, err = db.ListPackage(t.Context(), []*zypper.Repository{repo}, "", "pkg-name")
 	assert.NilError(t, err)
 	assert.Check(t, cmp.DeepEqual(results, expected))
 
@@ -82,7 +82,7 @@ func TestNew(t *testing.T) {
 	db, err = New(t.Context())
 	assert.NilError(t, err)
 	assert.Assert(t, db != nil, "no database")
-	results, err = db.SearchFile(t.Context(), "/some/path", "", true)
+	results, err = db.SearchFile(t.Context(), []*zypper.Repository{repo}, "/some/path", "")
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(results, 1))
 

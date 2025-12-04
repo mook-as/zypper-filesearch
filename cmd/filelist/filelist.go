@@ -39,7 +39,7 @@ func (c *command) Run(ctx context.Context, cfg *config.Config, db *database.Data
 
 	var results []database.SearchResult
 	for _, arch := range []string{arch, ""} {
-		results, err = db.ListPackage(ctx, arch, cfg.Enabled, flag.Args()...)
+		results, err = db.ListPackage(ctx, repos, arch, flag.Args()...)
 		if err != nil {
 			return nil, err
 		}
