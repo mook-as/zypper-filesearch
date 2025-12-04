@@ -26,7 +26,9 @@ func TestNew(t *testing.T) {
 			Repository: repo.Name,
 			Package:    "pkg-name",
 			Arch:       "avr32",
-			Version:    "2:1.5-6",
+			Epoch:      "2",
+			Version:    "1.5",
+			Release:    "6",
 			Path:       "/some/path",
 		},
 	}
@@ -44,9 +46,9 @@ func TestNew(t *testing.T) {
 	// Add some entries.
 	lastModified := time.Unix(1231006505, 0).UTC()
 	lastChecked := time.Unix(1231469665, 0).UTC()
-	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(p func(pkgid, name, arch, version string) error, f func(pkgid, file string) error) error {
+	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(p func(pkgid, name, arch, epoch, version, release string) error, f func(pkgid, file string) error) error {
 		for _, entry := range expected {
-			if err := p("pkg-id", entry.Package, entry.Arch, entry.Version); err != nil {
+			if err := p("pkg-id", entry.Package, entry.Arch, entry.Epoch, entry.Version, entry.Release); err != nil {
 				return err
 			}
 			if err := f("pkg-id", entry.Path); err != nil {
@@ -66,12 +68,12 @@ func TestNew(t *testing.T) {
 	// Check that we can find the file
 	results, err := db.SearchFile(t.Context(), []*zypper.Repository{repo}, "/some/path", "")
 	assert.NilError(t, err)
-	assert.Check(t, cmp.DeepEqual(results, expected))
+	assert.Check(t, cmp.DeepEqual(expected, results))
 
 	// Check that we can list files
 	results, err = db.ListPackage(t.Context(), []*zypper.Repository{repo}, "", "pkg-name")
 	assert.NilError(t, err)
-	assert.Check(t, cmp.DeepEqual(results, expected))
+	assert.Check(t, cmp.DeepEqual(expected, results))
 
 	// Check that the file can be written
 	assert.NilError(t, db.Close())

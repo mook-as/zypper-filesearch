@@ -57,7 +57,9 @@ func TestRefresh(t *testing.T) {
 			Repository: "test",
 			Package:    "zypper-filesearch",
 			Arch:       "x86_64",
-			Version:    "0.20251202T1523520800.235d9b57f3d8fbc2bc1856a34a088ba831bbae86-lp160.10.1",
+			Epoch:      "0",
+			Version:    "0.20251202T1523520800.235d9b57f3d8fbc2bc1856a34a088ba831bbae86",
+			Release:    "lp160.10.1",
 			Path:       "/usr/share/licenses/zypper-filesearch/LICENSE.txt",
 		},
 	}))

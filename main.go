@@ -53,11 +53,13 @@ func run(ctx context.Context) error {
 	}
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &logOptions)))
 
+	slog.DebugContext(ctx, "Initial setup complete")
 	// Make sure we can get the arch.
 	if _, err := zypper.Arch(); err != nil {
 		return err
 	}
 
+	slog.DebugContext(ctx, "Opening database")
 	db, err := database.New(ctx)
 	if err != nil {
 		return err
@@ -65,6 +67,7 @@ func run(ctx context.Context) error {
 	defer func() {
 		_ = db.Close()
 	}()
+	slog.DebugContext(ctx, "Database opened")
 
 	repos, err := zypper.ListRepositories(ctx, cfg.ReleaseVer)
 	if err != nil {
@@ -118,8 +121,17 @@ func run(ctx context.Context) error {
 				Value: func(result database.SearchResult) string { return result.Package },
 			},
 			{
-				Name:  "Version",
-				Value: func(result database.SearchResult) string { return result.Version },
+				Name: "Version",
+				Value: func(result database.SearchResult) string {
+					version := result.Version
+					if result.Epoch != "" && result.Epoch != "0" {
+						version = result.Epoch + ":" + version
+					}
+					if result.Release != "" {
+						version += "-" + result.Release
+					}
+					return version
+				},
 			},
 			{
 				Name:  "Arch",
