@@ -3,7 +3,8 @@
         <param name="url">https://github.com/mook-as/zypper-filesearch</param>
         <param name="scm">git</param>
         <param name="extract">zypper-filesearch.spec</param>
-        <param name="versionformat">0.%cI.%H</param>
+        <param name="versionformat">%(describe:tags,abbrev=64)</param>
+        <param name="versionrewrite-pattern">v(.*)</param>
         <param name="revision">main</param>
         <param name="changesgenerate">enable</param>
     </service>
