@@ -46,12 +46,13 @@ func TestNew(t *testing.T) {
 	// Add some entries.
 	lastModified := time.Unix(1231006505, 0).UTC()
 	lastChecked := time.Unix(1231469665, 0).UTC()
-	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(p func(pkgid, name, arch, epoch, version, release string) error, f func(pkgid, file string) error) error {
+	err = db.UpdateRepository(t.Context(), repo, lastChecked, lastModified, func(p func(pkgid, name, arch, epoch, version, release string) (func(string) error, error)) error {
 		for _, entry := range expected {
-			if err := p("pkg-id", entry.Package, entry.Arch, entry.Epoch, entry.Version, entry.Release); err != nil {
+			f, err := p("pkg-id", entry.Package, entry.Arch, entry.Epoch, entry.Version, entry.Release)
+			if err != nil {
 				return err
 			}
-			if err := f("pkg-id", entry.Path); err != nil {
+			if err := f(entry.Path); err != nil {
 				return err
 			}
 		}

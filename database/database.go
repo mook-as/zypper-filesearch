@@ -162,9 +162,15 @@ func (d *Database) GetTimestamps(ctx context.Context, repo *zypper.Repository) (
 }
 
 // Update a given repository; all updates should be done within the passed-in
-// function, as that will be used to establish a transaction.  It will be passed
-// a function which can update one file at a time.
-func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository, lastChecked, lastModified time.Time, cb func(pkg func(pkgid, name, arch, epoch, version, release string) error, file func(pkgid, file string) error) error) error {
+// function, as that will be used to establish a transaction.  The function
+// gets a callback which can be used to update a package, which in turn returns
+// a function that can add files to the package.
+func (d *Database) UpdateRepository(
+	ctx context.Context,
+	repo *zypper.Repository,
+	lastChecked, lastModified time.Time,
+	cb func(pkg func(pkgid, name, arch, epoch, version, release string) (func(string) error, error)) error,
+) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -189,7 +195,7 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 		return fmt.Errorf("failed to update repository %s: %w", repo.Name, err)
 	}
 
-	rowid, err := result.LastInsertId()
+	repositoryId, err := result.LastInsertId()
 	if err != nil {
 		return fmt.Errorf("failed to get last inserted id when updating repository %s: %w", repo.Name, err)
 	}
@@ -201,24 +207,27 @@ func (d *Database) UpdateRepository(ctx context.Context, repo *zypper.Repository
 		return err
 	}
 	fileStmt, err := tx.PrepareContext(ctx,
-		`INSERT OR REPLACE INTO files (pkgid, file) `+
-			`VALUES ((SELECT id FROM packages WHERE packages.pkgid = ?), ?)`)
+		`INSERT OR REPLACE INTO files (pkgid, file) VALUES (?, ?)`)
 	if err != nil {
 		return err
 	}
 
-	err = cb(func(pkgid, name, arch, epoch, version, release string) error {
-		_, err := pkgStmt.ExecContext(ctx, rowid, pkgid, name, arch, epoch, version, release)
+	err = cb(func(pkgid, name, arch, epoch, version, release string) (func(string) error, error) {
+		result, err := pkgStmt.ExecContext(ctx, repositoryId, pkgid, name, arch, epoch, version, release)
 		if err != nil {
-			return fmt.Errorf("failed to update package: %w", err)
+			return nil, fmt.Errorf("failed to update package: %w", err)
 		}
-		return nil
-	}, func(pkgid, file string) error {
-		_, err := fileStmt.ExecContext(ctx, pkgid, file)
+		pkgId, err := result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("failed to update file: %w", err)
+			return nil, fmt.Errorf("failed to get last inserted row: %w", err)
 		}
-		return nil
+		return func(file string) error {
+			_, err := fileStmt.ExecContext(ctx, pkgId, file)
+			if err != nil {
+				return fmt.Errorf("failed to update file: %w", err)
+			}
+			return nil
+		}, nil
 	})
 	if err != nil {
 		return err
